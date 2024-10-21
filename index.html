@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Link Viewer</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+    <style>
+      body,
+      html {
+        height: 100%;
+        /* Memastikan tinggi halaman penuh */
+        margin: 0;
+        font-family: Arial, sans-serif;
+        overflow-y: auto;
+        /* Mengizinkan scroll vertikal */
+      }
+
+      /* Atur video sebagai latar belakang */
+      #backgroundVideo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        min-width: 100%;
+        min-height: 100%;
+        width: auto;
+        height: auto;
+        z-index: -1;
+        transform: translate(-50%, -50%);
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        /* Agar konten berada di atas video */
+        padding: 20px;
+        /* Menambah ruang di sekitar konten */
+        background-color: rgba(0, 0, 0, 0.5);
+        /* Mengatur latar belakang dengan transparan */
+        margin-bottom: 50px;
+        /* Menambah ruang di bawah untuk scroll */
+      }
+
+      h1 {
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2.5rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      }
+
+      .form-group label {
+        color: white;
+        /* Warna label */
+      }
+
+      /* Mengatur hasil tampilan dengan transparan */
+      .result-card {
+        margin-top: 20px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        border: none;
+        /* Menghilangkan border */
+        background: rgba(255, 255, 255, 0.8);
+        /* Mengatur latar belakang menjadi semi-transparan */
+        border-radius: 10px;
+        /* Membuat sudut bulat */
+        width: 100%;
+        /* Mengatur lebar penuh */
+      }
+
+      /* Mengatur tabel menjadi transparan */
+      table {
+        background-color: transparent;
+        /* Mengatur warna latar belakang tabel menjadi transparan */
+      }
+
+      pre {
+        background-color: rgba(233, 236, 239, 0.8);
+        /* Warna latar belakang semi-transparan untuk JSON */
+        padding: 10px;
+        border-radius: 5px;
+        overflow: auto;
+      }
+
+      /* Mengatur tombol aksi */
+      .btn-action {
+        margin: 0 5px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Video sebagai latar belakang -->
+    <video autoplay muted loop id="backgroundVideo">
+      <source src="gambar.mp4" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+
+    <div class="container mt-5">
+      <h1>API Link Viewer</h1>
+      <form id="apiForm" class="mt-4">
+        <div class="form-group">
+          <label for="apiUrl">Masukkan URL API:</label>
+          <input
+            type="url"
+            class="form-control"
+            id="apiUrl"
+            placeholder="https://jsonplaceholder.typicode.com/users"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="userIdSearch">Cari berdasarkan ID Pengguna:</label>
+          <input
+            type="number"
+            class="form-control"
+            id="userIdSearch"
+            placeholder="Masukkan ID pengguna"
+          />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">
+          Tampilkan Data
+        </button>
+      </form>
+
+      <div id="apiResult" class="mt-4"></div>
+    </div>
+
+    <!-- Modal untuk menampilkan detail pengguna -->
+    <div
+      class="modal fade"
+      id="userModal"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="userModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userModalLabel">Detail Pengguna</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Close"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p id="modalContent"></p>
+            <button id="loadPostsBtn" class="btn btn-info btn-block">
+              Load Posts
+            </button>
+            <div id="postsContainer" class="mt-3"></div>
+            <!-- Tempat untuk menampilkan postingan -->
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-dismiss="modal"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+      let currentApiUrl = ""; // Menyimpan URL API saat ini
+
+      document
+        .getElementById("apiForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          currentApiUrl = document.getElementById("apiUrl").value; // Simpan URL API
+          const userIdSearch = document.getElementById("userIdSearch").value; // Ambil ID pengguna yang dicari
+
+          fetch(currentApiUrl)
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Network response was not ok");
+              }
+              return response.json();
+            })
+            .then((data) => {
+              displayData(data, userIdSearch); // Kirim ID pengguna untuk pencarian
+            })
+            .catch((error) => {
+              document.getElementById(
+                "apiResult"
+              ).innerHTML = `<div class="alert alert-danger" role="alert">Error: ${error.message}</div>`;
+            });
+        });
+
+      function displayData(data, userIdSearch) {
+        const resultDiv = document.getElementById("apiResult");
+        resultDiv.innerHTML = ""; // Kosongkan sebelumnya
+
+        // Filter data berdasarkan userId jika ada input pencarian
+        if (userIdSearch) {
+          data = data.filter((user) => user.id == userIdSearch);
+        }
+
+        // Cek apakah data adalah array atau objek
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            // Jika data adalah pengguna
+            if (data[0].hasOwnProperty("username")) {
+              const userCard = document.createElement("div");
+              userCard.className = "result-card";
+
+              const userTable = document.createElement("table");
+              userTable.className = "table table-striped table-bordered";
+
+              // Tambahkan header untuk pengguna
+              const userHeaderRow = document.createElement("tr");
+              userHeaderRow.innerHTML =
+                "<th>ID</th><th>Nama</th><th>Username</th><th>Email</th><th>Telepon</th><th>Alamat</th><th>Perusahaan</th><th>Actions</th>";
+              userTable.appendChild(userHeaderRow);
+
+              // Tambahkan baris data pengguna
+              data.forEach((user) => {
+                const userRow = document.createElement("tr");
+                userRow.innerHTML = `
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.username}</td>
+                                <td>${user.email}</td>
+                                <td>${user.phone}</td>
+                                <td>${user.address.street}, ${user.address.suite}, ${user.address.city}, ${user.address.zipcode}</td>
+                                <td>${user.company.name}</td>
+                                <td>
+                                    <button class="btn btn-success btn-sm btn-action" onclick="showUserDetails(${user.id})"><i class="fas fa-eye"></i> View</button>
+                                </td>
+                            `;
+                userTable.appendChild(userRow);
+              });
+
+              userCard.appendChild(userTable);
+              resultDiv.appendChild(userCard);
+            }
+            // Jika data adalah postingan
+            else if (data[0].hasOwnProperty("title")) {
+              const postCard = document.createElement("div");
+              postCard.className = "result-card";
+
+              const postTable = document.createElement("table");
+              postTable.className = "table table-striped table-bordered";
+
+              // Tambahkan header untuk postingan
+              const postHeaderRow = document.createElement("tr");
+              postHeaderRow.innerHTML =
+                "<th>ID</th><th>Judul</th><th>Isi</th><th>User ID</th>";
+              postTable.appendChild(postHeaderRow);
+
+              // Tambahkan baris data postingan
+              data.forEach((post) => {
+                const postRow = document.createElement("tr");
+                postRow.innerHTML = `<td>${post.id}</td><td>${post.title}</td><td>${post.body}</td><td>${post.userId}</td>`;
+                postTable.appendChild(postRow);
+              });
+
+              postCard.appendChild(postTable);
+              resultDiv.appendChild(postCard);
+            }
+          } else {
+            resultDiv.innerHTML =
+              '<div class="alert alert-warning" role="alert">Tidak ada pengguna atau postingan ditemukan.</div>';
+          }
+        } else {
+          resultDiv.innerHTML =
+            '<div class="alert alert-danger" role="alert">Data tidak valid.</div>';
+        }
+      }
+
+      function showUserDetails(userId) {
+        const url = currentApiUrl; // Ambil URL API saat ini
+        fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            const user = data.find((u) => u.id === userId);
+            if (user) {
+              const modalContent = `
+                            <strong>ID:</strong> ${user.id}<br>
+                            <strong>Nama:</strong> ${user.name}<br>
+                            <strong>Username:</strong> ${user.username}<br>
+                            <strong>Email:</strong> ${user.email}<br>
+                            <strong>Telepon:</strong> ${user.phone}<br>
+                            <strong>Alamat:</strong> ${user.address.street}, ${user.address.suite}, ${user.address.city}, ${user.address.zipcode}<br>
+                            <strong>Perusahaan:</strong> ${user.company.name}<br>
+                        `;
+              document.getElementById("modalContent").innerHTML = modalContent;
+              document.getElementById("postsContainer").innerHTML = ""; // Kosongkan kontainer postingan
+              $("#loadPostsBtn")
+                .off("click")
+                .on("click", function () {
+                  loadUserPosts(userId);
+                });
+              $("#userModal").modal("show");
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching user details:", error);
+          });
+      }
+
+      function loadUserPosts(userId) {
+        const url = `https://jsonplaceholder.typicode.com/posts?userId=${userId}`; // URL untuk mengambil postingan berdasarkan userId
+        fetch(url)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            return response.json();
+          })
+          .then((posts) => {
+            displayPosts(posts);
+          })
+          .catch((error) => {
+            const postsContainer = document.getElementById("postsContainer");
+            postsContainer.innerHTML = `<div class="alert alert-danger" role="alert">Error: ${error.message}</div>`;
+          });
+      }
+
+      function displayPosts(posts) {
+        const postsContainer = document.getElementById("postsContainer");
+        postsContainer.innerHTML = ""; // Kosongkan sebelumnya
+
+        if (posts.length > 0) {
+          const postsTable = document.createElement("table");
+          postsTable.className = "table table-striped table-bordered mt-3";
+          const postHeaderRow = document.createElement("tr");
+          postHeaderRow.innerHTML = "<th>ID</th><th>Judul</th><th>Isi</th>";
+          postsTable.appendChild(postHeaderRow);
+
+          posts.forEach((post) => {
+            const postRow = document.createElement("tr");
+            postRow.innerHTML = `<td>${post.id}</td><td>${post.title}</td><td>${post.body}</td>`;
+            postsTable.appendChild(postRow);
+          });
+
+          postsContainer.appendChild(postsTable);
+        } else {
+          postsContainer.innerHTML =
+            "<p>Tidak ada postingan untuk pengguna ini.</p>";
+        }
+      }
+    </script>
+  </body>
+</html>
